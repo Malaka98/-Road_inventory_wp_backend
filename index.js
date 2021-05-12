@@ -586,3 +586,51 @@ app.post("/delimage", authToken, multer().none(), (req, res) => {
   //   res.json("Cant upload")
   // }
 });
+
+/*----------------------------//Summary//-------------------------------*/
+
+app.get("/summary", async (req, res) => {
+  var resultLst = [];
+  var unique = [];
+  var tableData = [];
+
+  const getColData = new Promise((resolve, rejects) => {
+    function onlyUnique(value, index, self) {
+      return self.indexOf(value) === index;
+    }
+
+    connection.query(
+      `SELECT ID, data5 FROM document WHERE data6='naththandiya'`,
+      (error, results, fields) => {
+        if (error) console.log(error);
+
+        results.map((data, key) => {
+          resultLst.push(data.data5);
+        });
+
+        unique = resultLst.filter(onlyUnique);
+
+        resolve(unique);
+      }
+    );
+  });
+
+  await getColData.then((result) => {
+    result.map((value, key) => {
+      connection.query(
+        `SELECT SUM(T1data2), SUM(T1data3), SUM(T1data4), SUM(T1data5), SUM(T1data6), SUM(T1data7), SUM(T1data8), SUM(T1data9), SUM(T1data10), SUM(T1data11) FROM table1 WHERE d_id = ANY (SELECT ID FROM document WHERE data5=?);`,
+        value,
+        (error, results, fields) => {
+          if (error) console.log(error);
+
+          tableData.push(results);
+          
+        }
+      );
+    });
+  });
+
+  setTimeout(() => {
+    res.json({col: unique, data: tableData});
+  }, 10000);
+});
