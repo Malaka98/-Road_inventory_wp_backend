@@ -589,10 +589,9 @@ app.post("/delimage", authToken, multer().none(), (req, res) => {
 
 /*----------------------------//Summary//-------------------------------*/
 
-app.get("/summary", async (req, res) => {
+app.post("/summary", multer().none(), (req, res) => {
   var resultLst = [];
   var unique = [];
-  var tableData = [];
 
   const getColData = new Promise((resolve, rejects) => {
     function onlyUnique(value, index, self) {
@@ -600,7 +599,7 @@ app.get("/summary", async (req, res) => {
     }
 
     connection.query(
-      `SELECT ID, data5 FROM document WHERE data6='naththandiya'`,
+      `SELECT ID, data5 FROM document WHERE data6=?`, [req.body["searchkey"]],
       (error, results, fields) => {
         if (error) console.log(error);
 
@@ -615,22 +614,52 @@ app.get("/summary", async (req, res) => {
     );
   });
 
-  await getColData.then((result) => {
-    result.map((value, key) => {
+  const getRowData = (val) => {
+    return new Promise((resolve, reject) => {
       connection.query(
         `SELECT SUM(T1data2), SUM(T1data3), SUM(T1data4), SUM(T1data5), SUM(T1data6), SUM(T1data7), SUM(T1data8), SUM(T1data9), SUM(T1data10), SUM(T1data11) FROM table1 WHERE d_id = ANY (SELECT ID FROM document WHERE data5=?);`,
-        value,
+        val,
         (error, results, fields) => {
           if (error) console.log(error);
 
-          tableData.push(results);
-          
+          resolve(results);
         }
       );
     });
+  };
+
+  const getRowData2 = (val) => {
+    return new Promise((resolve, reject) => {
+      connection.query(
+        `SELECT SUM(data7), SUM(data8) FROM document WHERE data5=?`,
+        val,
+        (error, results, fields) => {
+          if (error) console.log(error);
+
+          resolve(results);
+        }
+      );
+    });
+  };
+
+  getColData.then((result) => {
+    Promise.all(
+      result.map((value, key) => {
+        return getRowData(value);
+      })
+    ).then((result2) => {
+      Promise.all(
+        result.map((value, key) => {
+          return getRowData2(value);
+        })
+      ).then((result3) => {
+        console.log(result3);
+        res.json({ col: unique, data: result2, data2: result3 });
+      });
+    });
   });
 
-  setTimeout(() => {
-    res.json({col: unique, data: tableData});
-  }, 10000);
+  // setTimeout(() => {
+  //   res.json({col: unique, data: tableData});
+  // }, 10000);
 });
